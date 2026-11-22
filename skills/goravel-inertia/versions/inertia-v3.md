@@ -1,13 +1,16 @@
-# Inertia core — v3
+# Inertia.js v3 protocol — reference
 
 Inertia is one HTTP protocol, not a framework feature. The server owns routing,
 data and auth; the client swaps page components without a full reload. Every
-adapter implements the same contract,
-so anything below holds whatever the server and client frameworks are.
+adapter implements the same contract, so anything below holds whatever the
+server and client frameworks are.
 
 Source of truth: <https://inertiajs.com/docs/v3/core-concepts/the-protocol>.
-When this skill and the installed adapter disagree, the adapter wins for that
-project and the docs win for the protocol.
+This reference ships with the Goravel adapter skill: read it for the contract and
+[v1.18.0.md](v1.18.0.md) for the Goravel implementation. When the two disagree,
+the installed adapter wins for that project and the docs win for the protocol.
+Known divergence in v1.18.0: flash (see [Validation errors and
+flash](#validation-errors-and-flash)).
 
 ## The page object
 
@@ -126,6 +129,20 @@ target is the login page.
 A reset prop is sent in both `X-Inertia-Reset` and `X-Inertia-Partial-Data`, and
 comes back without a merge label, so the client replaces rather than merges it.
 
+```http
+REQUEST
+X-Inertia: true
+X-Inertia-Partial-Component: Posts/Index
+X-Inertia-Partial-Data: posts
+X-Inertia-Reset: posts
+
+RESPONSE 200
+{ "component": "Posts/Index", "props": { "posts": [ ... ] }, "url": "/posts", "version": "..." }
+```
+
+No `mergeProps` entry for `posts` in that response: the client replaces the array.
+For a scroll prop the server also sets `scrollProps.posts.reset`.
+
 ### Deferred and rescued
 
 A deferred prop is skipped on a full visit and listed under `deferredProps`,
@@ -143,6 +160,18 @@ Merge metadata applies on partial reloads only: a full visit replaces the prop
 even when it carries a label. `matchPropsOn` names the identifying field per
 prop path, as `"<propPath>.<keyField>"` split at the last dot, so updates land
 in place instead of duplicating items.
+
+```json
+{
+  "props": { "posts": { "data": [{ "id": 11, "title": "First" }] } },
+  "mergeProps": ["posts.data"],
+  "matchPropsOn": ["posts.data.id"]
+}
+```
+
+Read `posts.data.id` as prop path `posts.data` plus key field `id` (split at the
+last dot): an incoming item with `id` 11 replaces the existing one instead of
+appending a duplicate.
 
 Infinite scroll builds on merge props: the inner array is labelled (`posts.data`)
 and `scrollProps` reports `pageName`, `previousPage`, `nextPage`, `currentPage`
@@ -165,9 +194,34 @@ Errors travel in the `errors` prop: `{}` when clean, otherwise each key mapping
 to a message or an array of messages. `X-Inertia-Error-Bag` keeps several forms
 on one page apart.
 
-Flash is a top-level page object field in v3. An adapter may instead share it as a
-`flash` prop. Assert the shape the adapter in use produces; do not assume that a
-shared prop has the same history semantics as the protocol's top-level flash.
+Flash is a top-level page object field in v3, included only when flash data
+exists. The client exposes it through the `inertia:flash` event and leaves it out
+of the saved history state. An adapter may instead share it as a `flash` prop:
+`goravel-inertia` v1.18.0 does, so read `props.flash` there, never `page.flash`.
+Assert the shape the installed adapter produces; a shared prop does not have the
+same history semantics as the protocol's top-level flash.
+
+## Precognition
+
+Precognition validates a form without running the action. The client sends the
+normal request plus `Precognition: true`, and `Precognition-Validate-Only` with a
+comma list of field names when only some need checking. The server validates and
+answers:
+
+- `204 No Content` with `Precognition: true` and `Precognition-Success: true`
+  when validation passes.
+- `422 Unprocessable Entity` with the errors body when it fails.
+- `Vary: Precognition` on every response that passes through the validation
+  middleware.
+
+The action must not execute: no writes, no flash, no redirect. The client shows
+the errors inline and sends the real request later.
+
+`github.com/goravel/inertia` v1.18.0 does **not** implement Precognition, and
+neither does `petaki/inertia-go` v1.15.0. A Precognition request therefore reaches
+the handler like any other and can run the mutation. Either add a middleware or
+route guard that validates `Precognition-Validate-Only` and returns `204`/`422`
+before the handler, or leave Precognition disabled on the client in that project.
 
 ## Status codes
 
@@ -201,6 +255,8 @@ An adapter is correct when it does all of this:
 7. Shares `errors` as an always prop and honours the error bag header.
 8. Serves the root template with the page object and the client entry, and
    exposes the asset version that goes into the page object.
+9. Answers Precognition requests before the action: `204` on success, `422` with
+   errors on failure, and never runs the mutation.
 
 Test at the seam: send the real headers and assert component, props, status,
 redirect target, `props.errors` and the flash shape. That covers pages and
@@ -219,3 +275,5 @@ actually show up.
 - Returning a `409` for a non-`GET` request.
 - Sending `null` for a deferred prop that failed instead of listing it in
   `rescuedProps`.
+- Enabling client-side Precognition on an adapter that ignores its headers, so a
+  validation request executes the action.
