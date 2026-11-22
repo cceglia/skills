@@ -1,6 +1,6 @@
 ---
 name: goravel-inertia
-description: Build, configure, test or debug the github.com/goravel/inertia adapter: installation, web middleware, facade rendering and props, validation, flash, redirects, asset versioning, Vite and SSR. Use with inertia-core for Inertia protocol semantics.
+description: "Build, configure, test or debug the github.com/goravel/inertia adapter: installation, web middleware, facade rendering and props, validation, flash, redirects, asset versioning, Vite and SSR. Use with inertia-core for Inertia protocol semantics."
 ---
 
 # Goravel Inertia
