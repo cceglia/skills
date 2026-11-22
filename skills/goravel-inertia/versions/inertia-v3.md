@@ -249,14 +249,15 @@ An adapter is correct when it does all of this:
 3. Emits the HTML page object inside `data-page`, escaped for `</script>`.
 4. Filters props by category and mode, and emits the matching metadata.
 5. Compares `X-Inertia-Version` and answers `409` on a `GET` mismatch, keeping
-   flash for the next request; non-`GET` requests never receive it.
+   flash for the next request; non-`GET` requests never receive it. The v1.18.0
+   middleware only aborts, so check flash survival after a mismatch.
 6. Turns `302` into `303` after `PUT`/`PATCH`/`DELETE`, and answers `409` with
    `X-Inertia-Location` for redirects that leave the app.
 7. Shares `errors` as an always prop and honours the error bag header.
 8. Serves the root template with the page object and the client entry, and
    exposes the asset version that goes into the page object.
 9. Answers Precognition requests before the action: `204` on success, `422` with
-   errors on failure, and never runs the mutation.
+   errors on failure, and never runs the mutation. v1.18.0 does not.
 
 Test at the seam: send the real headers and assert component, props, status,
 redirect target, `props.errors` and the flash shape. That covers pages and
