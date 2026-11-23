@@ -1,6 +1,8 @@
 ---
 name: goravel-inertia
 description: "Build, configure, test or debug Inertia.js v3 apps on Goravel with github.com/goravel/inertia: installation, web middleware and shared props, facade rendering, deferred/optional/once/merge/scroll props, validation, flash, redirects, asset versioning, Vite and SSR. Also covers the framework-independent Inertia protocol and client semantics: page objects, X-Inertia headers, partial reloads, Precognition and adapter conformance."
+metadata:
+  version: "1.18.0"
 ---
 
 # Goravel Inertia
